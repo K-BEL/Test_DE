@@ -1,5 +1,3 @@
-Web and Twitter Scraping Using Selenium with Python + Store JSON to RavenDB + A simple  RavenDB REST API
-
 # Mon Projet d'Extraction de Données avec Selenium
 
 Ce projet utilise Selenium, une bibliothèque Python, pour extraire des données à partir de sites web. Pour que Selenium fonctionne correctement, vous devez vous assurer d'avoir Chromium (le navigateur open-source) installé sur votre système.
