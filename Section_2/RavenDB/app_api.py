@@ -1,48 +1,62 @@
-import json
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-from typing import List
-from fastapi.security.api_key import APIKeyHeader
+from pyravendb.store import document_store
+import json
 
 app = FastAPI()
 
-# Simulated API key for authentication
-API_KEY = "PASS123"
-api_key_header = APIKeyHeader(name="X-API-Key")
+# Configure the RavenDB connection
+document_store.configure(
+    "YOUR_RAVENDB_URL",
+    database="SITE1",
+    cert_file=None,  # If using secure connection
+    #api_key=("YOUR_API_KEY", "YOUR_API_SECRET")  # If using API key authentication
+)
 
-def authenticate(api_key: str = Depends(api_key_header)):
-    if api_key != API_KEY:
-        raise HTTPException(status_code=401, detail="Unauthorized")
+# Define a Pydantic model for the JSON data
+class UserData(BaseModel):
+    date: str
+    time: str
+    title1: str
+    intro: str
+    title2: str
+    Taux: str
+    Plafond: str
+    Calcul_des_interets: str
+    Interets_soumis_a_imposition: str
+    Depot_initial: str
+    Disponibilite: str
+    Gestion_en_ligne: str
+    Versement_en_ligne: str
+    Conditions: str
+    Mentions_legales: str
 
-class DataResponse(BaseModel):
-    data: dict
-
-def load_json(json_path):
-    with open(json_path, "r") as json_file:
+# Route to import JSON data into RavenDB
+@app.post("/import_data")
+def import_data():
+    with open(r"C:\Users\LENOVO\Desktop\Test_DE\Section_2\Saves\site1.json", "r") as json_file:
         json_data = json.load(json_file)
-        return json_data
+        for item in json_data:
+            user_data = UserData(**item)
+            # Transform UserData into a dictionary to store in RavenDB
+            raven_doc = user_data.dict()
 
-@app.get("/")
-def read_root():
-    return {"message": "Welcome to the JSON Data API!"}
+            # Store the RavenDB document
+            with document_store.open_session() as session:
+                session.store(raven_doc)
+                session.save_changes()
 
-@app.get("/data_sets", response_model=List[str])
-def get_data_sets():
-    return ["site1", "site2", "site3"]
+            return {"message": "Data imported successfully"}
 
-@app.get("/data_sets/{data_set}", response_model=DataResponse)
-def get_data(data_set: str, auth: None = Depends(authenticate)):
-    if data_set == "site1":
-        json_path = r"C:\Users\LENOVO\Desktop\Test_DE\Section_2\Saves\site1.json"
-    elif data_set == "site2":
-        json_path = r"C:\Users\LENOVO\Desktop\Test_DE\Section_2\Saves\site2.json"
-    elif data_set == "site3":
-        json_path = r"C:\Users\LENOVO\Desktop\Test_DE\Section_2\Saves\site3.json"
-    else:
-        raise HTTPException(status_code=404, detail="Data set not found")
-
-    json_data = load_json(json_path)
-    return DataResponse(data=json_data)
+# Route to retrieve JSON data from RavenDB
+@app.get("/users/{user_id}", response_model=UserData)
+def get_user(user_id: str):
+    with document_store.open_session() as session:
+        user_data = session.load(user_id)
+        if user_data:
+            return user_data
+        else:
+            raise HTTPException(status_code=404, detail="User not found")
 
 # Run the FastAPI application
 if __name__ == "__main__":
